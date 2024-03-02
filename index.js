@@ -77,7 +77,7 @@ app
     const { body } = req;
     const { event } = body;
     const program = require(filePath);
-    const result = program.handler(event);
+    const result = await program.handler(event);
     res.send(`Running program ${programId}\nResult:\n${JSON.stringify(result)}`);
   } catch (err) {
     console.log(err);
