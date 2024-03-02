@@ -90,6 +90,10 @@ app
     const { programId } = req.params;
     const filePath = `./installations/${programId}.js`;
 
+    // Clear cache
+    delete require.cache[require.resolve(filePath)];
+
+    // Prevent reload
     await fs.unlink(filePath,(err) => {
       if (err) {
         console.error('Error deleting file:\n', err);
