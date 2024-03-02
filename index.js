@@ -1,6 +1,9 @@
 const express = require('express');
 const fs = require('fs');
 const uuid = require('uuid');
+const multer = require('multer');
+const unzipper = require('unzipper');
+const { exec } = require('child_process');
 
 
 const app = express();
@@ -20,21 +23,122 @@ app.get('/health', (req, res) => {
 });
 
 
-// Save a program that was POSTed to this API
-app.post('/install', async (req, res) => {
-  const id = uuid.v1();
-  const filePath = `./installations/${id}.js`;
-  const code = toJavaScript(JSON.stringify(req.body));
-  res.send(`Progrm UUID\n${id}`);
+app
+.route('/programs/:programId')
+.post(async (req, res) => {
+  // Execute a specific program
+  const { programId } = req.params;
+  const filePath = `./installations/${programId}/index.js`
+  try {
+    const { body } = req;
+    const { event } = body;
+    const program = require(filePath);
+    const result = await program.handler(event);
+    res.send(`Running program ${programId}\nResult:\n${JSON.stringify(result)}`);
+  } catch (err) {
+    console.log(err);
+    res.send(err);
+  }
+})
+.delete(async (req, res) => {
+  // Uninstall a specific program
+  try {
+    const { programId } = req.params;
+    const filePath = `./installations/${programId}/index.js`;
 
-  await fs.writeFile(filePath, code, (err) => {
-    if (err) {
-      console.error('Error writing to file:\n', JSON.stringify(err));
-    } else {
-      console.log('Data has been written to', filePath);
-    }
-  });
+    // Clear cache
+    delete require.cache[require.resolve(filePath)];
+
+    // Prevent reload
+    const directoryPath = filePath.substring(0, filePath.lastIndexOf('/'));
+    fs.rm(directoryPath, { recursive: true, force: true}, () => {});
+
+    res.send(`Uninstalled program id ${programId}`);
+  } catch (err) {
+    res.send(`error:\n${JSON.stringify(err)}`);
+  }
+})
+.put(async (req, res) => {
+  // Update a specific program
+  try {
+    const { programId } = req.params;
+    const filePath = `./installations/${programId}.js`;
+
+    // Clear cache to force reload
+    delete require.cache[require.resolve(filePath)];
+
+    const code = toJavaScript(JSON.stringify(req.body));
+    await fs.writeFile(filePath, code, (err) => {
+      if (err) {
+        console.error('Error updating file:', JSON.stringify(err));
+      } else {
+        console.log('Updated', filePath);
+      }
+    });
+    res.send(`Updated program id ${programId}`);
+  } catch (err) {
+    res.send(`error:\n${JSON.stringify(err)}`);
+  }
 });
+
+
+// Save a program that was POSTed to this API in a .zip
+const installZipProgram = async (req, res) => {
+  const { file } = req;
+
+  if (!file) {
+    return res.status(400).json({ error: 'No file uploaded.' });
+  }
+
+  try {
+    const id = uuid.v1();
+    const extractionDir = `./installations/${id}`;
+    const zipDir = await unzipper.Open.buffer(file.buffer);
+    const { files } = zipDir;
+
+    if (!files || !files.length) {
+      return res.status(400).json({ error: 'Empty zip' });
+    }
+
+    const writes = files.map(async file => {
+      const filePath = `${extractionDir}/${file.path}`
+      const directoryPath = filePath.substring(0, filePath.lastIndexOf('/'));
+      fs.mkdir(directoryPath, { recursive: true }, () => {
+        file.stream().pipe(fs.createWriteStream(filePath));
+      });
+    });
+
+    await Promise.all(writes);
+    exec('yarn', { cwd: extractionDir });
+    res.send(`Progrm UUID\n${id}`);
+  } catch (err) {
+    console.log('Err:');
+    console.log(JSON.stringify(err));
+    res.send(`Error installing program UUID\n${id}`);
+  }
+}
+
+
+// Save a program that was POSTed to this API in raw text.
+const installPlainTextProgram = async (req, res) => {
+  const id = uuid.v1();
+  const filePath = `./installations/${id}/index.js`;
+  const directoryPath = filePath.substring(0, filePath.lastIndexOf('/'));
+
+  fs.mkdir(directoryPath, {recursive: true}, () => {
+    const code = toJavaScript(JSON.stringify(req.body));
+    fs.writeFile(filePath, code, (err) => {
+      if (err) {
+        const msg = `Error writing to file:\n, ${JSON.stringify(err)}`;
+        res.send(msg);
+        console.error(msg);
+      } else {
+        console.log('Data has been written to\n', filePath);
+        res.send(`Progrm UUID\n${id}`);
+      }
+    });
+  });
+}
 
 
 const toJavaScript = programText => {
@@ -66,66 +170,15 @@ class StringBuilder {
   }
 }
 
+// To support zip file-upload
+const storageEngine = multer.memoryStorage();
+const uploader = multer({storage: storageEngine});
 
-app
-.route('/programs/:programId')
-.post(async (req, res) => {
-  // Execute a specific program
-  const { programId } = req.params;
-  const filePath = `./installations/${programId}.js`
-  try {
-    const { body } = req;
-    const { event } = body;
-    const program = require(filePath);
-    const result = await program.handler(event);
-    res.send(`Running program ${programId}\nResult:\n${JSON.stringify(result)}`);
-  } catch (err) {
-    console.log(err);
-    res.send(err);
-  }
-})
-.delete(async (req, res) => {
-  // Uninstall a specific program
-  try {
-    const { programId } = req.params;
-    const filePath = `./installations/${programId}.js`;
-
-    // Clear cache
-    delete require.cache[require.resolve(filePath)];
-
-    // Prevent reload
-    await fs.unlink(filePath,(err) => {
-      if (err) {
-        console.error('Error deleting file:\n', err);
-      } else {
-        console.log('Deleted ', filePath);
-      }
-    });
-
-    res.send(`Uninstalled program id ${programId}`);
-  } catch (err) {
-    res.send(`error:\n${JSON.stringify(err)}`);
-  }
-})
-.put(async (req, res) => {
-  // Update a specific program
-  try {
-    const { programId } = req.params;
-    const filePath = `./installations/${programId}.js`;
-
-    // Clear cache to force reload
-    delete require.cache[require.resolve(filePath)];
-
-    const code = toJavaScript(JSON.stringify(req.body));
-    await fs.writeFile(filePath, code, (err) => {
-      if (err) {
-        console.error('Error updating file:', JSON.stringify(err));
-      } else {
-        console.log('Updated', filePath);
-      }
-    });
-    res.send(`Updated program id ${programId}`);
-  } catch (err) {
-    res.send(`error:\n${JSON.stringify(err)}`);
+app.post('/install', uploader.single('file'), async (req, res) => {
+  const { file } = req;
+  if (file) {
+    await installZipProgram(req, res);
+  } else {
+    await installPlainTextProgram(req, res);
   }
 });
