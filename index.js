@@ -82,10 +82,6 @@ app
   } catch (err) {
     console.log(err);
     res.send(err);
-  } finally {
-    // Guarantee a reload happens so the most up-to-date
-    // version of the program will run every time.
-    delete require.cache[require.resolve(filePath)];
   }
 })
 .delete(async (req, res) => {
@@ -112,6 +108,10 @@ app
   try {
     const { programId } = req.params;
     const filePath = `./installations/${programId}.js`;
+
+    // Clear cache to force reload
+    delete require.cache[require.resolve(filePath)];
+
     const code = toJavaScript(JSON.stringify(req.body));
     await fs.writeFile(filePath, code, (err) => {
       if (err) {
