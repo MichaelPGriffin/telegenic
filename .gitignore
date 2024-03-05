@@ -1,3 +1,5 @@
 /node_modules/
 /installations/*
 yarn.lock
+package-lock.json
+
