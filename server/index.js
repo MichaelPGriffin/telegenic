@@ -17,6 +17,10 @@ app.use(express.json());
 express.urlencoded();
 
 
+// Used in file-system interactions
+const INSTALLATIONS_ABS_PATH = './installations';
+
+// Used in `require` calls
 const INSTALLATIONS_REL_PATH = '../installations';
 
 app.listen(port, () => {
@@ -50,13 +54,13 @@ app
   // Uninstall a specific program
   try {
     const { programId } = req.params;
-    const filePath = `${INSTALLATIONS_REL_PATH}/${programId}/index.js`;
-
+    const relativePath = `${INSTALLATIONS_REL_PATH}/${programId}/index.js`;
+    
     // Clear cache
-    delete require.cache[require.resolve(filePath)];
-
+    delete require.cache[require.resolve(relativePath)];
+    
     // Prevent reload
-    const directoryPath = filePath.substring(0, filePath.lastIndexOf('/'));
+    const directoryPath = `${INSTALLATIONS_ABS_PATH}/${programId}`;
     fs.rm(directoryPath, { recursive: true, force: true}, () => {});
 
     res.send(`Uninstalled program id ${programId}`);
@@ -67,21 +71,9 @@ app
 .put(async (req, res) => {
   // Update a specific program
   try {
-    const { programId } = req.params;
-    const filePath = `${INSTALLATIONS_REL_PATH}/${programId}.js`;
-
-    // Clear cache to force reload
-    delete require.cache[require.resolve(filePath)];
-
-    const code = toJavaScript(JSON.stringify(req.body));
-    await fs.writeFile(filePath, code, (err) => {
-      if (err) {
-        console.error('Error updating file:', JSON.stringify(err));
-      } else {
-        console.log('Updated', filePath);
-      }
-    });
-    res.send(`Updated program id ${programId}`);
+    // TODO: Make this work with file-handling functionality used by installer.
+    // Can also borrow the cache-cleanup detail of the `delete` method.
+    throw Error('Not yet supported!');
   } catch (err) {
     res.send(`error:\n${JSON.stringify(err)}`);
   }
@@ -99,7 +91,7 @@ const installZipProgram = async (req, res) => {
   const id = uuid.v1();
 
   try {
-    const extractionDir = `${INSTALLATIONS_REL_PATH}/${id}`;
+    const extractionDir = `${INSTALLATIONS_ABS_PATH}/${id}`;
 
     const fileExtension = fileName => {
       const zip = '.zip';
