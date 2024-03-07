@@ -10,13 +10,14 @@ const  { tmpdir } = require('node:os');
 const  { sep } = require('node:path');
 const { exec } = require('child_process');
 
-
 const app = express();
 const port = 3001;
 app.use(express.text());
 app.use(express.json());
 express.urlencoded();
 
+
+const INSTALLATIONS_REL_PATH = '../installations';
 
 app.listen(port, () => {
   console.log(`Listening on port ${port}`);
@@ -33,7 +34,7 @@ app
 .post(async (req, res) => {
   // Execute a specific program
   const { programId } = req.params;
-  const filePath = `./installations/${programId}/index.js`
+  const filePath = `${INSTALLATIONS_REL_PATH}/${programId}/index.js`
   try {
     const { body } = req;
     const { event } = body;
@@ -49,7 +50,7 @@ app
   // Uninstall a specific program
   try {
     const { programId } = req.params;
-    const filePath = `./installations/${programId}/index.js`;
+    const filePath = `${INSTALLATIONS_REL_PATH}/${programId}/index.js`;
 
     // Clear cache
     delete require.cache[require.resolve(filePath)];
@@ -67,7 +68,7 @@ app
   // Update a specific program
   try {
     const { programId } = req.params;
-    const filePath = `./installations/${programId}.js`;
+    const filePath = `${INSTALLATIONS_REL_PATH}/${programId}.js`;
 
     // Clear cache to force reload
     delete require.cache[require.resolve(filePath)];
@@ -98,7 +99,7 @@ const installZipProgram = async (req, res) => {
   const id = uuid.v1();
 
   try {
-    const extractionDir = `./installations/${id}`;
+    const extractionDir = `${INSTALLATIONS_REL_PATH}/${id}`;
 
     const fileExtension = fileName => {
       const zip = '.zip';
@@ -194,7 +195,7 @@ const installZipProgram = async (req, res) => {
 // Save a program that was POSTed to this API in raw text.
 const installPlainTextProgram = async (req, res) => {
   const id = uuid.v1();
-  const filePath = `./installations/${id}/index.js`;
+  const filePath = `${INSTALLATIONS_REL_PATH}/${id}/index.js`;
   const directoryPath = filePath.substring(0, filePath.lastIndexOf('/'));
 
   fs.mkdir(directoryPath, {recursive: true}, () => {
