@@ -6,10 +6,8 @@ const zlib = require('zlib');
 const  { tmpdir } = require('node:os');
 const  { sep } = require('node:path');
 const { exec } = require('child_process');
+const { INSTALLATIONS_ABS_PATH } = require('./config');
 
-
-// Used in file-system interactions
-const INSTALLATIONS_ABS_PATH = './installations';
 
 const install = async (file, programId) => {
   const extractionDir = `${INSTALLATIONS_ABS_PATH}/${programId}`;
