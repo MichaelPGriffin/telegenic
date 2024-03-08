@@ -9,6 +9,10 @@ const  { sep } = require('node:path');
 const { exec } = require('child_process');
 
 
+// Used in file-system interactions
+const INSTALLATIONS_ABS_PATH = './installations';
+
+
 // Save a program that was POSTed to this API in a .zip
 const installFile = async (req, res) => {
   const { file } = req;

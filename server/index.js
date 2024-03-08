@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const multer = require('multer');
+const { INSTALLATIONS_ABS_PATH, INSTALLATIONS_REL_PATH } = require('./config');
 const { installFile } = require('./installer');
 
 const app = express();
@@ -9,12 +10,6 @@ app.use(express.text());
 app.use(express.json());
 express.urlencoded();
 
-
-// Used in file-system interactions
-const INSTALLATIONS_ABS_PATH = './installations';
-
-// Used in `require` calls
-const INSTALLATIONS_REL_PATH = '../installations';
 
 app.listen(port, () => {
   console.log(`Listening on port ${port}`);
@@ -64,8 +59,14 @@ app
 .put(async (req, res) => {
   // Update a specific program
   try {
+    // Clear cached program from memory
+    const { programId } = req.params;
+    const relativePath = `${INSTALLATIONS_REL_PATH}/${programId}/index.js`;
+    delete require.cache[require.resolve(relativePath)];
+
+    // Overwrite the file
     // TODO: Make this work with file-handling functionality used by installer.
-    // Can also borrow the cache-cleanup detail of the `delete` method.
+
     throw Error('Not yet supported!');
   } catch (err) {
     res.send(`error:\n${JSON.stringify(err)}`);
