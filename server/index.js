@@ -1,8 +1,9 @@
 const express = require('express');
 const fs = require('fs');
 const multer = require('multer');
+const uuid = require('uuid');
 const { INSTALLATIONS_ABS_PATH, INSTALLATIONS_REL_PATH } = require('./config');
-const { installFile } = require('./installer');
+const { install } = require('./installer');
 
 const app = express();
 const port = 3001;
@@ -20,9 +21,12 @@ app.get('/health', (req, res) => {
   res.send('OK');
 });
 
+// To support multipart/form-data upload
+const storageEngine = multer.memoryStorage();
+const uploader = multer({storage: storageEngine});
 
 app
-.route('/programs/:programId')
+.route('/programs/:programId', )
 .post(async (req, res) => {
   // Execute a specific program
   const { programId } = req.params;
@@ -56,28 +60,47 @@ app
     res.send(`error:\n${JSON.stringify(err)}`);
   }
 })
-.put(async (req, res) => {
-  // Update a specific program
+.put(uploader.single('file'), async (req, res) => {
+  const { programId } = req.params;
+  const { file } = req;
+
+  if (!programId || !file) {
+    return res.status(400).json({ error: 'File and program ID are required' });
+  }
+
   try {
     // Clear cached program from memory
-    const { programId } = req.params;
     const relativePath = `${INSTALLATIONS_REL_PATH}/${programId}/index.js`;
     delete require.cache[require.resolve(relativePath)];
 
-    // Overwrite the file
-    // TODO: Make this work with file-handling functionality used by installer.
+    // Delete the old directory
+    const directoryPath = `${INSTALLATIONS_ABS_PATH}/${programId}`;
+    fs.rm(directoryPath, { recursive: true, force: true}, () => {});
 
-    throw Error('Not yet supported!');
+    await install(file, programId);
+
+    res.send(`Updated program id ${programId}`);
   } catch (err) {
     res.send(`error:\n${JSON.stringify(err)}`);
   }
 });
 
 
-// To support zip file-upload
-const storageEngine = multer.memoryStorage();
-const uploader = multer({storage: storageEngine});
-
 app.post('/install', uploader.single('file'), async (req, res) => {
-  await installFile(req, res);
+  const { file } = req;
+
+  if (!file) {
+    return res.status(400).json({ error: 'No file uploaded.' });
+  }
+
+  const programId = uuid.v1();
+
+  try {
+    await install(file, programId);
+    res.send(`Progrm UUID\n${programId}`);
+  } catch (err) {
+    console.log('Err:');
+    console.log(err);
+    res.send(`Error installing program UUID\n${programId}`);
+  }
 });

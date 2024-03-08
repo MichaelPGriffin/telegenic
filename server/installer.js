@@ -1,5 +1,4 @@
 const fs = require('fs');
-const uuid = require('uuid');
 const unzipper = require('unzipper');
 const tar = require('tar');
 const stream = require('stream');
@@ -12,65 +11,53 @@ const { exec } = require('child_process');
 // Used in file-system interactions
 const INSTALLATIONS_ABS_PATH = './installations';
 
+const install = async (file, programId) => {
+  const extractionDir = `${INSTALLATIONS_ABS_PATH}/${programId}`;
 
-// Save a program that was POSTed to this API in a .zip
-const installFile = async (req, res) => {
-  const { file } = req;
+  const fileExtension = fileName => {
+    const zip = '.zip';
+    const tarGz = '.tar.gz';
 
-  if (!file) {
-    return res.status(400).json({ error: 'No file uploaded.' });
-  }
-
-  const id = uuid.v1();
-
-  try {
-    const extractionDir = `${INSTALLATIONS_ABS_PATH}/${id}`;
-
-    const fileExtension = fileName => {
-      const zip = '.zip';
-      const tarGz = '.tar.gz';
-
-      if (fileName.endsWith(zip)) {
-        return zip;
-      }
-
-      if (fileName.endsWith(tarGz)) {
-        return tarGz;
-      }
-
-      throw new Error(`Unsupported file extension in file name ${fileName}`);
+    if (fileName.endsWith(zip)) {
+      return zip;
     }
 
-    let files = null;
-    if (fileExtension(file.originalname) == '.zip') {
-      const zipDir = await unzipper.Open.buffer(file.buffer);
-      files = zipDir.files;
+    if (fileName.endsWith(tarGz)) {
+      return tarGz;
+    }
 
-      if (!files || !files.length) {
-        return res.status(400).json({ error: 'Empty zip' });
-      }
+    throw new Error(`Unsupported file extension in file name ${fileName}`);
+  }
 
-      const writes = files.map(async file => {
-        const filePath = `${extractionDir}/${file.path}`;
-        const directoryPath = filePath.substring(0, filePath.lastIndexOf('/'));
-        fs.mkdir(directoryPath, { recursive: true }, () => {
-        file.stream().pipe(fs.createWriteStream(filePath));
-        });
+  let files = null;
+  if (fileExtension(file.originalname) == '.zip') {
+    const zipDir = await unzipper.Open.buffer(file.buffer);
+    files = zipDir.files;
+
+    if (!files || !files.length) {
+      return res.status(400).json({ error: 'Empty zip' });
+    }
+
+    const writes = files.map(async file => {
+      const filePath = `${extractionDir}/${file.path}`;
+      const directoryPath = filePath.substring(0, filePath.lastIndexOf('/'));
+      fs.mkdir(directoryPath, { recursive: true }, () => {
+      file.stream().pipe(fs.createWriteStream(filePath));
       });
+    });
 
-      await Promise.all(writes);
-      exec('yarn', { cwd: extractionDir });
-      res.send(`Progrm UUID\n${id}`);
-    } else if (fileExtension(file.originalname) == '.tar.gz') {
+    await Promise.all(writes);
+    exec('yarn', { cwd: extractionDir });
+  } else if (fileExtension(file.originalname) == '.tar.gz') {
 
-      if (!file || !file.size) {
-        return res.status(400).json({ error: 'Empty tar.gz' });
-      }
+    if (!file || !file.size) {
+      return res.status(400).json({ error: 'Empty tar.gz' });
+    }
 
-      fs.mkdir(extractionDir, () => {
-        // This assumes the tar.gz contents were in a folder, and that folder was the input to the `tar` command.
-        const tmpDir = tmpdir();
-        fs.mkdtemp(`${tmpDir}${sep}`, (err, tmpLocation) => {
+    fs.mkdir(extractionDir, () => {
+      // This assumes the tar.gz contents were in a folder, and that folder was the input to the `tar` command.
+      const tmpDir = tmpdir();
+      fs.mkdtemp(`${tmpDir}${sep}`, (err, tmpLocation) => {
         if (err) {
           throw err;
         }
@@ -95,7 +82,7 @@ const installFile = async (req, res) => {
               fs.copyFileSync(`${tmpLocation}${sep}${intermediateFolderName}${sep}${f}`, `${extractionDir}${sep}${f}`)
               });
               exec('yarn', { cwd: extractionDir });
-              res.send(`Progrm UUID\n${id}`);
+
             } catch (err) {
               console.log(err);
               res.send(err);
@@ -106,14 +93,10 @@ const installFile = async (req, res) => {
         });
 
         tarExtractStream.on('error', err => { throw err; });
-        });
       });
-    }
-  } catch (err) {
-    console.log('Err:');
-    console.log(err);
-    res.send(`Error installing program UUID\n${id}`);
+    });
   }
 }
 
-exports.installFile = installFile;
+
+exports.install = install;

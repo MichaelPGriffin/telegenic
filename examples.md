@@ -13,7 +13,13 @@
 ```    
 ### Update a program in-place
 ```
-    curl -X PUT -H "Content-Type: text/plain"  -d 'const handler = (event) => ({"foo is": "bar", "uptime": process.uptime()});' localhost:3001/programs/c6c63160-d868-11ee-8070-733f7c005c83
+curl -X PUT -H "Content-Type: multipart/form-data" -F "file=@../telegenic_stubs/stub.tar.gz" 
+localhost:3001/programs/c6c63160-d868-11ee-8070-733f7c005c83
+
+curl -X PUT -H "Content-Type: multipart/form-data" -F "file=@../telegenic_stubs/stub.zip" 
+localhost:3001/programs/c6c63160-d868-11ee-8070-733f7c005c83
+
+
 ```
 
 ### Uninstall a program
