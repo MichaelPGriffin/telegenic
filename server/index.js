@@ -81,7 +81,7 @@ app
 
 
 // Save a program that was POSTed to this API in a .zip
-const installZipProgram = async (req, res) => {
+const installFile = async (req, res) => {
   const { file } = req;
 
   if (!file) {
@@ -184,66 +184,14 @@ const installZipProgram = async (req, res) => {
 }
 
 
-// Save a program that was POSTed to this API in raw text.
-const installPlainTextProgram = async (req, res) => {
-  const id = uuid.v1();
-  const filePath = `${INSTALLATIONS_REL_PATH}/${id}/index.js`;
-  const directoryPath = filePath.substring(0, filePath.lastIndexOf('/'));
-
-  fs.mkdir(directoryPath, {recursive: true}, () => {
-    const code = toJavaScript(JSON.stringify(req.body));
-    fs.writeFile(filePath, code, (err) => {
-      if (err) {
-        const msg = `Error writing to file:\n, ${JSON.stringify(err)}`;
-        res.send(msg);
-        console.error(msg);
-      } else {
-        console.log('Data has been written to\n', filePath);
-        res.send(`Progrm UUID\n${id}`);
-      }
-    });
-  });
-}
-
-
-const toJavaScript = programText => {
-  const sb = new StringBuilder();
-
-  // Skip quotes at start and end of text
-  for (let i = 1; i < programText.length - 1; i++) {
-    // Skip escape characters before quotes
-    if (programText[i] === '\\' && (programText[i + 1] === '\'' || programText[i + 1] === '\"')) continue;
-    sb.append(programText[i]);
-  }
-
-  sb.append('\nmodule.exports.handler = handler');
-  return sb.toString();
-}
-
-
-class StringBuilder {
-  constructor() {
-    this.contents = [];
-  }
-
-  append(c) {
-    this.contents.push(c);
-  }
-
-  toString() {
-    return this.contents.join('');
-  }
-}
-
 // To support zip file-upload
 const storageEngine = multer.memoryStorage();
 const uploader = multer({storage: storageEngine});
 
 app.post('/install', uploader.single('file'), async (req, res) => {
-  const { file } = req;
-  if (file) {
-    await installZipProgram(req, res);
-  } else {
-    await installPlainTextProgram(req, res);
+  if (!req.file) {
+    return;
   }
+
+  await installFile(req, res);
 });

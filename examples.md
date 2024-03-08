@@ -1,11 +1,8 @@
 # Examples
 ### To install a Node progam:
 ```
-    curl -H "Content-Type: text/plain"  -d 'const handler = (event) => ({"event is": event});' localhost:3001/install
-    curl -H "Content-Type: text/plain"  -d 'const handler = () => 1;' localhost:3001/install
-    curl -H "Content-Type: text/plain"  -d 'const handler = (event) => { event.uptime = process.uptime(); return event; };' localhost:3001/install
-    curl -H "Content-Type: text/plain"  -d 'const handler = async (event) => {await setTimeout(() => {}, 3000);return {"event is": event};};' localhost:3001/install
     curl -X POST -H "Content-Type: multipart/form-data" -F "file=@../telegenic_stubs/stub.zip" http://localhost:3001/install
+    curl -X POST -H "Content-Type: multipart/form-data" -F "file=@../telegenic_stubs/stub.tar.zip" http://localhost:3001/install
 ```
   
 ### To execute a program:
