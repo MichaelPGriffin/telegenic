@@ -6,14 +6,14 @@ const { INSTALLATIONS_ABS_PATH, INSTALLATIONS_REL_PATH } = require('./config');
 const { install } = require('./installer');
 
 const app = express();
-const port = 3001;
+const httpPort = 3001;
 app.use(express.text());
 app.use(express.json());
 express.urlencoded();
 
 
-app.listen(port, () => {
-  console.log(`Listening on port ${port}`);
+app.listen(httpPort, () => {
+  console.log(`Listening on port ${httpPort}`);
 });
 
 
@@ -36,7 +36,8 @@ app
     const { event } = body;
     const program = require(filePath);
     const result = await program.handler(event);
-    res.send(`Running program ${programId}\nResult:\n${JSON.stringify(result)}`);
+    console.log(`Running program ${programId}\nResult:\n${JSON.stringify(result)}`);
+    res.send(JSON.stringify(result));
   } catch (err) {
     console.log(err);
     res.send(err);
@@ -103,4 +104,49 @@ app.post('/install', uploader.single('file'), async (req, res) => {
     console.log(err);
     res.send(`Error installing program UUID\n${programId}`);
   }
+});
+
+
+// TCP Server
+const net = require('net');
+const tcpPort = 3000;
+
+const tcpServer = net.createServer((socket) => {
+  console.log('Client connected.');
+
+  // Event listener for data received from the client
+  socket.on('data', async (data) => {
+    const { programId, event } = JSON.parse(data);
+    console.log(`Received from client programId: ${programId}`);
+    const filePath = `${INSTALLATIONS_REL_PATH}/${programId}/index.js`
+
+    try {
+      const program = require(filePath);
+      const result = await program.handler(event);
+      console.log(`Running program ${programId}\nResult:\n${JSON.stringify(result)}`);
+      socket.write(JSON.stringify(result));
+    } catch (err) {
+      console.log(err);
+      socket.write(err);
+    }
+  });
+
+  // Event listener for client disconnection
+  socket.on('end', () => {
+    console.log('Client disconnected.');
+  });
+
+  socket.on('error', function(err) {
+    if (err.code === 'ECONNRESET') {
+      // Happens when clients disconnect. Do nothing.
+    } else {
+      console.log('error');
+      console.log(JSON.stringify(err));
+    }
+  });
+});
+
+// Start the server and listen on the specified port
+tcpServer.listen(tcpPort, () => {
+  console.log(`TCP Server listening on port ${tcpPort}`);
 });
