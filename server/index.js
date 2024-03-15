@@ -117,6 +117,14 @@ const tcpServer = net.createServer((socket) => {
   // Event listener for data received from the client
   socket.on('data', async (data) => {
     const { programId, event } = JSON.parse(data);
+
+    if (!programId || !event) {
+      const issueDescription = 'Invalid request: `programId` and `event` cannot be falsy.';
+      const details = `Received programId ${programId} and event ${event}`;
+      socket.write(`${issueDescription}\n${details}`);
+      return;
+    }
+
     console.log(`Received from client programId: ${programId}`);
     const filePath = `${INSTALLATIONS_REL_PATH}/${programId}/index.js`
 
@@ -127,7 +135,7 @@ const tcpServer = net.createServer((socket) => {
       socket.write(JSON.stringify(result));
     } catch (err) {
       console.log(err);
-      socket.write(err);
+      socket.write(JSON.stringify(err));
     }
   });
 
