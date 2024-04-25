@@ -18,3 +18,9 @@ A REST API that provides an AWS Lambda-like developer experience with minimal se
 ### Usage
 Run `yarn add` and `node index.js`
 
+### To check the code for any linting errors, run the following command:
+`npm run lint`
+
+### To automatically fix many common lint errors, you can run:
+`npm run lint --fix`
+
