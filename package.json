@@ -10,6 +10,7 @@
   "author": "Mike Griffin",
   "license": "MIT",
   "dependencies": {
+    "eslint-plugin-node": "^11.1.0",
     "express": "^4.18.3",
     "multer": "^1.4.5-lts.1",
     "net": "^1.0.2",
